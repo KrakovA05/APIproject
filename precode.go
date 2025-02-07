@@ -73,9 +73,8 @@ func PostTasks(w http.ResponseWriter, r *http.Request) {
 	if _, exists := tasks[task.ID]; exists {
 		http.Error(w, "задача с таким ID уже существует", http.StatusBadRequest)
 		return
-	} else {
-		tasks[task.ID] = task
 	}
+	tasks[task.ID] = task
 
 	w.Header().Set("Content-type", "json/application")
 	w.WriteHeader(http.StatusCreated)
