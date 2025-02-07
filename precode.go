@@ -43,7 +43,7 @@ var tasks = map[string]Task{
 
 // Ниже напишите обработчики для каждого эндпоинта
 // ...
-func getTasks(w http.ResponseWriter, r *http.Request) {
+func GetTasks(w http.ResponseWriter, r *http.Request) {
 
 	resp, err := json.Marshal(tasks)
 	if err != nil {
@@ -70,14 +70,18 @@ func PostTasks(w http.ResponseWriter, r *http.Request) {
 		return
 
 	}
-
-	tasks[task.ID] = task
+	if _, exists := tasks[task.ID]; exists {
+		http.Error(w, "задача с таким ID уже существует", http.StatusBadRequest)
+		return
+	} else {
+		tasks[task.ID] = task
+	}
 
 	w.Header().Set("Content-type", "json/application")
 	w.WriteHeader(http.StatusCreated)
 }
 
-func getTaskID(w http.ResponseWriter, r *http.Request) {
+func GetTaskID(w http.ResponseWriter, r *http.Request) {
 
 	id := chi.URLParam(r, "id")
 
@@ -103,12 +107,8 @@ func DeleteTask(w http.ResponseWriter, r *http.Request) {
 
 	id := chi.URLParam(r, "id")
 
-	task, ok := tasks[id]
+	task := tasks[id]
 
-	if !ok {
-		http.Error(w, "элемент не найден", http.StatusBadRequest)
-		return
-	}
 	resp, err := json.Marshal(task)
 	if err != nil {
 		http.Error(w, err.Error(), http.StatusBadRequest)
@@ -126,9 +126,9 @@ func main() {
 
 	// здесь регистрируйте ваши обработчики
 	// ...
-	r.Get("/tasks", getTasks)
+	r.Get("/tasks", GetTasks)
 	r.Post("/tasks", PostTasks)
-	r.Get("/tasks{id}", getTaskID)
+	r.Get("/tasks{id}", GetTaskID)
 	r.Delete("/tasks{id}", DeleteTask)
 
 	if err := http.ListenAndServe(":8080", r); err != nil {
