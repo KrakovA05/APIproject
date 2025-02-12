@@ -1,7 +1,6 @@
 package main
 
 import (
-	"bytes"
 	"encoding/json"
 	"fmt"
 	"net/http"
@@ -9,7 +8,6 @@ import (
 	"github.com/go-chi/chi/v5"
 )
 
-// Task ...
 type Task struct {
 	ID           string   `json:"id"`
 	Description  string   `json:"description"`
@@ -30,7 +28,7 @@ var tasks = map[string]Task{
 	},
 	"2": {
 		ID:          "2",
-		Description: "Протестировать финальное задание с помощью Postmen",
+		Description: "Протестировать финальное задание с помощью Postman",
 		Note:        "Лучше это делать в процессе разработки, каждый раз, когда запускаешь сервер и проверяешь хендлер",
 		Applications: []string{
 			"VS Code",
@@ -41,94 +39,57 @@ var tasks = map[string]Task{
 	},
 }
 
-// Ниже напишите обработчики для каждого эндпоинта
-// ...
-func GetTasks(w http.ResponseWriter, r *http.Request) {
-
-	resp, err := json.Marshal(tasks)
-	if err != nil {
-		http.Error(w, err.Error(), http.StatusInternalServerError)
+func getAllTasks(w http.ResponseWriter, r *http.Request) {
+	w.Header().Set("Content-Type", "application/json")
+	if err := json.NewEncoder(w).Encode(tasks); err != nil {
+		http.Error(w, "Ошибка при кодировании задач", http.StatusInternalServerError)
+		return
 	}
-
-	w.Header().Set("Content-type", "application/json; charset=utf-8")
 	w.WriteHeader(http.StatusOK)
-	w.Write(resp)
 }
 
-func PostTasks(w http.ResponseWriter, r *http.Request) {
+func createTask(w http.ResponseWriter, r *http.Request) {
+	w.Header().Set("Content-Type", "application/json")
 	var task Task
-	var buf bytes.Buffer
-
-	_, err := buf.ReadFrom(r.Body)
-	if err != nil {
-		http.Error(w, err.Error(), http.StatusBadRequest)
-
-	}
-
-	if err = json.Unmarshal(buf.Bytes(), &task); err != nil {
-		http.Error(w, err.Error(), http.StatusBadRequest)
-		return
-
-	}
-	if _, exists := tasks[task.ID]; exists {
-		http.Error(w, "задача с таким ID уже существует", http.StatusBadRequest)
+	if err := json.NewDecoder(r.Body).Decode(&task); err != nil {
+		http.Error(w, "Неверный формат данных", http.StatusBadRequest)
 		return
 	}
 	tasks[task.ID] = task
-
-	w.Header().Set("Content-type", "json/application")
 	w.WriteHeader(http.StatusCreated)
+	json.NewEncoder(w).Encode(task)
 }
 
-func GetTaskID(w http.ResponseWriter, r *http.Request) {
-
+func getTaskByID(w http.ResponseWriter, r *http.Request) {
+	w.Header().Set("Content-Type", "application/json")
 	id := chi.URLParam(r, "id")
-
-	task, ok := tasks[id]
-
-	if !ok {
-		http.Error(w, "элемент не найден", http.StatusBadRequest)
+	task, exists := tasks[id]
+	if !exists {
+		http.Error(w, "Задача не найдена", http.StatusBadRequest)
 		return
 	}
-	resp, err := json.Marshal(task)
-	if err != nil {
-		http.Error(w, err.Error(), http.StatusBadRequest)
-		return
-	}
-
-	w.Header().Set("Content-type", "application/json")
 	w.WriteHeader(http.StatusOK)
-	w.Write(resp)
-
+	json.NewEncoder(w).Encode(task)
 }
 
-func DeleteTask(w http.ResponseWriter, r *http.Request) {
-
+func deleteTask(w http.ResponseWriter, r *http.Request) {
+	w.Header().Set("Content-Type", "application/json")
 	id := chi.URLParam(r, "id")
-
-	task := tasks[id]
-
-	resp, err := json.Marshal(task)
-	if err != nil {
-		http.Error(w, err.Error(), http.StatusBadRequest)
+	if _, exists := tasks[id]; !exists {
+		http.Error(w, "Задача не найдена", http.StatusBadRequest)
 		return
 	}
-
-	w.Header().Set("Content-type", "application/json")
+	delete(tasks, id)
 	w.WriteHeader(http.StatusOK)
-	w.Write(resp)
 }
 
 func main() {
-
 	r := chi.NewRouter()
 
-	// здесь регистрируйте ваши обработчики
-	// ...
-	r.Get("/tasks", GetTasks)
-	r.Post("/tasks", PostTasks)
-	r.Get("/tasks{id}", GetTaskID)
-	r.Delete("/tasks{id}", DeleteTask)
+	r.Get("/tasks", getAllTasks)
+	r.Post("/tasks", createTask)
+	r.Get("/tasks/{id}", getTaskByID)
+	r.Delete("/tasks/{id}", deleteTask)
 
 	if err := http.ListenAndServe(":8080", r); err != nil {
 		fmt.Printf("Ошибка при запуске сервера: %s", err.Error())
