@@ -51,6 +51,9 @@ func getAllTasks(w http.ResponseWriter, r *http.Request) {
 func createTask(w http.ResponseWriter, r *http.Request) {
 	w.Header().Set("Content-Type", "application/json")
 	var task Task
+	if _, exists := tasks[task.ID]; exists {
+		http.Error(w, "задача с таким ID уже существует", http.StatusBadRequest)
+	}
 	if err := json.NewDecoder(r.Body).Decode(&task); err != nil {
 		http.Error(w, "Неверный формат данных", http.StatusBadRequest)
 		return
